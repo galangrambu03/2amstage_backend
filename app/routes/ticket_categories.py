@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from app import db
 from app.models.event import Event
 from app.models.ticket_category import TicketCategory
-from app.utlis.decorators import role_required
+from app.utils.decorators import role_required
 
 tc_bp = Blueprint('ticket_categories', __name__, url_prefix='/api/events/<int:event_id>/categories')
 
@@ -73,4 +73,12 @@ def update_category(event_id, category_id):
 @tc_bp.route('/<int:category_id>', methods=["DELETE"])
 @role_required('organizer', 'super_admin')
 def delete_category(event_id, category_id):
-    category
+    category = TicketCategory.query.filter_by(id=category_id, event_id=event_id).first()
+    if not category:
+        return jsonify({
+            'message': "Category not found."
+        }), 404
+    db.session.delete(category)
+    db.session.commit()
+
+    return jsonify({'message': 'Kategory has been deleted'}), 200

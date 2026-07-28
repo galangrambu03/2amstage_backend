@@ -1,4 +1,5 @@
 from app import db
+from datetime import datetime
 
 class TicketCategory(db.Model):
     __tablename__ = "ticket_categories"
@@ -9,7 +10,7 @@ class TicketCategory(db.Model):
     harga = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     kuota = db.Column(db.Integer, nullable=False)
     sisa_kuota = db.Column(db.Integer, nullable=False)
-    created_at = db.Column(db.DateTime, default=None)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {
