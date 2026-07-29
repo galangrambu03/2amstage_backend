@@ -22,9 +22,13 @@ def create_app():
         from app.routes.events import events_bp
         from app.routes.ticket_categories import tc_bp
         from app.routes.orders import orders_bp
+        from app.routes.tickets import tickets_bp
+        from app.routes.reports import reports_bp
         app.register_blueprint(auth_bp)
         app.register_blueprint(events_bp)
         app.register_blueprint(tc_bp)
         app.register_blueprint(orders_bp)
+        app.register_blueprint(tickets_bp)
+        app.register_blueprint(reports_bp)
 
     return app

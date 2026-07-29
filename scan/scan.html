@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Test Scanner QR - Backend Only</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 500px; margin: 30px auto; padding: 0 16px; }
+    h2 { margin-bottom: 4px; }
+    p.hint { color: #666; font-size: 14px; }
+    #reader { width: 100%; margin-top: 16px; }
+    #reader video { transform: scaleX(-1); }
+    #result {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 8px;
+      font-weight: bold;
+      display: none;
+    }
+    .success { background: #d4edda; color: #155724; }
+    .already_used { background: #f8d7da; color: #721c24; }
+    .invalid { background: #e2e3e5; color: #383d41; }
+    label { display: block; margin-top: 12px; font-size: 14px; }
+    input { width: 100%; padding: 8px; box-sizing: border-box; margin-top: 4px; }
+    button.reset { margin-top: 12px; padding: 8px 16px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h2>🎫 Test Scanner Tiket (Backend Only)</h2>
+  <p class="hint">Halaman ini bukan bagian dari project React, cuma buat mastiin endpoint /api/tickets/validate bisa dipakai dengan hasil scan kamera beneran.</p>
+
+  <label>
+    URL Backend:
+    <input type="text" id="apiUrl" value="http://127.0.0.1:5000/api/tickets/validate">
+  </label>
+  <label>
+    Token Petugas (Bearer, tanpa kata "Bearer"):
+    <input type="text" id="token" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc4NTI5NjQwNSwianRpIjoiOTcxYTM1MjgtNGVlYy00NTMyLTkzNjktNTc5N2I3NjZiMzMxIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjciLCJuYmYiOjE3ODUyOTY0MDUsImNzcmYiOiIzYTg2ZjIyNy0zYzM3LTQ2ODgtYjUzMi0xMWE3ZTI2ZTdjMDAiLCJleHAiOjE3ODUyOTczMDUsInJvbGUiOiJwZXR1Z2FzIn0.MIbPPXMo0jDxIpgQ5tVQ0QOF0SA_vAvsgJxNvUE7Z90">
+  </label>
+
+  <div id="reader"></div>
+  <div id="result"></div>
+  <button class="reset" onclick="resetScanner()">🔄 Scan Ulang</button>
+
+  <script>
+    let scanner;
+    let isProcessing = false;
+
+    function showResult(status, message) {
+      const el = document.getElementById("result");
+      el.style.display = "block";
+      el.className = status; // success / already_used / invalid
+      el.innerText = message;
+    }
+
+    async function onScanSuccess(decodedText) {
+      if (isProcessing) return; // cegah spam request kalau kamera nangkep QR berkali-kali
+      isProcessing = true;
+
+      scanner.pause();
+
+      const apiUrl = document.getElementById("apiUrl").value;
+      const token = document.getElementById("token").value;
+
+      try {
+        const res = await fetch(apiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+          },
+          body: JSON.stringify({ ticket_code: decodedText })
+        });
+
+        const data = await res.json();
+        console.log("Response:", res.status, data);
+
+        if (res.status === 200) {
+          showResult("success", `✅ SUKSES\nKode: ${decodedText}\n${data.message}`);
+        } else if (res.status === 400 && data.status === "already_used") {
+          showResult("already_used", `❌ SUDAH DIPAKAI\nKode: ${decodedText}\n${data.message}`);
+        } else if (res.status === 403) {
+          showResult("invalid", `⚠️ AKSES DITOLAK\n${data.message}`);
+        } else {
+          showResult("invalid", `⚠️ TIDAK VALID\nKode: ${decodedText}\n${data.message || JSON.stringify(data)}`);
+        }
+      } catch (err) {
+        showResult("invalid", "⚠️ Gagal konek ke backend: " + err.message);
+      }
+    }
+
+    function resetScanner() {
+      isProcessing = false;
+      document.getElementById("result").style.display = "none";
+      if (scanner) scanner.resume();
+    }
+
+    window.onload = () => {
+      scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+      scanner.render(onScanSuccess, (err) => {
+        // silent, biasanya cuma "QR not found" tiap frame, normal
+      });
+    };
+  </script>
+</body>
+</html>

@@ -52,37 +52,53 @@ def create_event():
         "event" : new_event.to_dict()
     }), 201
 
-@events_bp.route('/<int:event_id>', methods=['PUT'])
-@role_required('organizer', "super_admin")
+@events_bp.route("/<int:event_id>", methods=["PUT"])
+@role_required("organizer", "super_admin")
 def update_event(event_id):
+    from flask_jwt_extended import get_jwt, get_jwt_identity
+
     event = Event.query.get(event_id)
     if not event:
-        return jsonify({'message': "Event not found."})
+        return jsonify({"message": "Event Not Found"}), 404
+
+    claims = get_jwt()
+    user_id = get_jwt_identity()
+
+    if claims.get("role") == "organizer" and str(event.organizer_id) != str(user_id):
+        return jsonify({"message": "You don't have access to this event."}), 403
 
     data = request.get_json()
-    for field in ['nama', 'deskripsi', 'artis', 'tanggal', 'waktu', 'lokasi', 'poster_url', 'status']:
+
+    for field in ["nama", "deskripsi", "artis", "tanggal", "waktu", "lokasi", "poster_url", "status"]:
         if field in data:
             setattr(event, field, data[field])
-        
+
     db.session.commit()
 
-    return  jsonify({
-        "message" : 'Event has been updated!',
-        "event" : event.to_dict()
+    return jsonify({
+        "message": "Event Succesfully Updated",
+        "event": event.to_dict()
     }), 200
 
-@events_bp.route('/<int:event_id>', methods=['DELETE'])
-@role_required('organizer', 'super_admin')
+@events_bp.route("/<int:event_id>", methods=["DELETE"])
+@role_required("organizer", "super_admin")
 def delete_event(event_id):
+    from flask_jwt_extended import get_jwt, get_jwt_identity
+
     event = Event.query.get(event_id)
     if not event:
-        return jsonify({"message" : "Event not found"}), 404
-    
+        return jsonify({"message": "Event Not Found"}), 404
+
+    claims = get_jwt()
+    user_id = get_jwt_identity()
+
+    if claims.get("role") == "organizer" and str(event.organizer_id) != str(user_id):
+        return jsonify({"message": "You dont have access to this event."}), 403
+
     db.session.delete(event)
     db.session.commit()
 
-    return jsonify({"message" : "Event has been succesfully deleted!"}), 200
-
+    return jsonify({"message": "Event Successfully deleted"}), 200
 
     
 
