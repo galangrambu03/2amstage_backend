@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tiket {{ event.nama }}</title>
+</head>
+<body style="margin:0; padding:0; background-color:#0B0A10; font-family:Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#0B0A10; padding:32px 16px;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background-color:#16141E; border-radius:16px; overflow:hidden;">
+
+        <tr>
+          <td style="background-color:#FF2E63; padding:24px 32px;">
+            <span style="font-family:Helvetica,Arial,sans-serif; font-size:22px; font-weight:bold; color:#F7F5FB; letter-spacing:1px;">
+              2AM<span style="color:#0B0A10;">STAGE</span>
+            </span>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:32px 32px 8px 32px;">
+            <p style="margin:0; font-size:14px; color:#FFC93C; text-transform:uppercase; letter-spacing:2px; font-weight:bold;">Pembayaran Berhasil</p>
+            <h1 style="margin:8px 0 0 0; font-size:26px; color:#F7F5FB;">Halo {{ user.nama }}, tiketmu sudah siap!</h1>
+            <p style="margin:12px 0 0 0; font-size:14px; color:#B4AFC7; line-height:1.6;">
+              Terima kasih sudah membeli tiket. Detail acara ada di bawah ini. QR code lengkap
+              terlampir dalam file PDF/PNG di email ini untuk ditunjukkan saat check-in.
+            </p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:24px 32px 8px 32px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#201D2B; border-radius:12px;">
+              <tr>
+                <td style="padding:20px 24px;">
+                  <p style="margin:0; font-size:20px; font-weight:bold; color:#F7F5FB;">{{ event.artis or event.nama }}</p>
+                  <p style="margin:4px 0 14px 0; font-size:14px; color:#B4AFC7;">{{ event.nama }}</p>
+                  <table role="presentation" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="font-size:13px; color:#716C87; padding:2px 0;">Tanggal</td>
+                      <td style="font-size:13px; color:#F7F5FB; padding:2px 0 2px 12px;">{{ tanggal_display }}</td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:13px; color:#716C87; padding:2px 0;">Waktu</td>
+                      <td style="font-size:13px; color:#F7F5FB; padding:2px 0 2px 12px;">{{ waktu_display }}</td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:13px; color:#716C87; padding:2px 0;">Lokasi</td>
+                      <td style="font-size:13px; color:#F7F5FB; padding:2px 0 2px 12px;">{{ event.lokasi }}</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:16px 32px 0 32px;">
+            <p style="margin:0 0 8px 0; font-size:13px; font-weight:bold; color:#B4AFC7; text-transform:uppercase; letter-spacing:1px;">Rincian Pesanan</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              {% for item in items %}
+              <tr>
+                <td style="font-size:14px; color:#F7F5FB; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.08);">
+                  {{ item.nama_kategori }} &times; {{ item.jumlah }}
+                </td>
+                <td align="right" style="font-size:14px; color:#F7F5FB; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.08);">
+                  {{ item.subtotal_display }}
+                </td>
+              </tr>
+              {% endfor %}
+              <tr>
+                <td style="font-size:15px; font-weight:bold; color:#FFC93C; padding:12px 0 0 0;">Total</td>
+                <td align="right" style="font-size:15px; font-weight:bold; color:#FFC93C; padding:12px 0 0 0;">{{ total_display }}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:24px 32px 32px 32px;">
+            <p style="margin:0; font-size:12px; color:#716C87; line-height:1.6;">
+              Jumlah tiket QR: {{ tickets|length }} lembar (terlampir sebagai PNG per tiket dan 1 file PDF gabungan).
+              Simpan email ini atau unduh lampirannya untuk ditunjukkan ke petugas saat check-in.
+            </p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="background-color:#0B0A10; padding:20px 32px; text-align:center;">
+            <p style="margin:0; font-size:12px; color:#716C87;">2AMSTAGE &middot; Concert &amp; Live Entertainment</p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
