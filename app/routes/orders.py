@@ -8,6 +8,7 @@ from app.models.ticket import Ticket
 from app.utils.qr_generator import generate_qr_base64, generate_ticket_code
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
+from datetime import time as dtime
 
 orders_bp = Blueprint('orders', __name__, url_prefix="/api/orders")
 
@@ -59,7 +60,7 @@ def create_order():
         event_id=event_id,
         total_harga=total_harga,
         status_pembayaran='pending',
-        expired_at=datetime.utcnow() + timedelta(minutes=15)
+        expired_at=datetime.now() + timedelta(minutes=10)
     )
     db.session.add(new_order)
     db.session.flush()
@@ -103,9 +104,12 @@ def pay_order(order_id):
             }), 400
     
     order.status_pembayaran='paid'
-    order.paid_at = datetime.utcnow()
+    order.paid_at = datetime.now()   
 
     generated_tickets = []
+
+    event = Event.query.get(order.event_id)
+    ticket_expiry = datetime.combine(event.tanggal, dtime(23, 59, 59)) + timedelta(days=1)
 
     for detail in order.order_details:
         category = TicketCategory.query.get(detail.ticket_category_id)
@@ -119,7 +123,8 @@ def pay_order(order_id):
                 order_detail_id=detail.id,
                 ticket_code=ticket_code,
                 qr_code_base64=qr_base64,
-                status="unused"
+                status="unused",
+                expires_at=ticket_expiry
             )
             db.session.add(new_ticket)
             generated_tickets.append(new_ticket)

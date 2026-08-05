@@ -3,13 +3,32 @@ from app import db
 from app.models.event import Event
 from app.utils.decorators import role_required
 from flask_jwt_extended import jwt_required, get_jwt_identity
+import os
+from werkzeug.utils import secure_filename
+from flask import current_app
+from datetime import datetime
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 events_bp = Blueprint('events', __name__, url_prefix='/api/events')
 
 @events_bp.route('', methods=['GET'])
 def get_all_event():
     events = Event.query.filter_by(status='published').all()
-    return jsonify([e.to_dict() for e in events]), 200
+    result = []
+    for e in events:
+        data = e.to_dict()
+        total_kuota = sum(tc.kuota for tc in e.ticket_categories)
+        total_sisa = sum(tc.sisa_kuota for tc in e.ticket_categories)
+        terjual = total_kuota - total_sisa
+        data['progress_percent'] = round((terjual / total_kuota) * 100) if total_kuota > 0 else 0
+        harga_list = [tc.harga for tc in e.ticket_categories]
+        data['harga_termurah'] = min(harga_list) if harga_list else None
+        result.append(data)
+    return jsonify(result), 200
 
 @events_bp.route('/<int:event_id>', methods=['GET'])
 def get_event_detail(event_id):
@@ -24,13 +43,22 @@ def get_event_detail(event_id):
 @events_bp.route('', methods=['POST'])
 @role_required('organizer', 'super_admin')
 def create_event():
-    data = request.get_json()
+    data = request.form  # ganti dari request.get_json()
     user_id = get_jwt_identity()
 
     required_fields = ['nama', 'tanggal', 'waktu', 'lokasi']
     for field in required_fields:
         if not data.get(field):
-            return jsonify({'message' :f'{field} Must be filled'}), 400
+            return jsonify({'message': f'{field} Must be filled'}), 400
+
+    poster_url = None
+    if 'poster' in request.files:
+        file = request.files['poster']
+        if file and file.filename and allowed_file(file.filename):
+            filename = secure_filename(f"{user_id}_{int(datetime.now().timestamp())}_{file.filename}")
+            filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            poster_url = f"/static/uploads/{filename}"
 
     new_event = Event(
         organizer_id=user_id,
@@ -40,7 +68,7 @@ def create_event():
         tanggal=data['tanggal'],
         waktu=data['waktu'],
         lokasi=data['lokasi'],
-        poster_url=data.get('poster_url'),
+        poster_url=poster_url,
         status=data.get('status', 'draft')
     )
 
@@ -48,8 +76,8 @@ def create_event():
     db.session.commit()
 
     return jsonify({
-        "message" : 'Event succesfully added!',
-        "event" : new_event.to_dict()
+        "message": 'Event succesfully added!',
+        "event": new_event.to_dict()
     }), 201
 
 @events_bp.route("/<int:event_id>", methods=["PUT"])
@@ -67,11 +95,25 @@ def update_event(event_id):
     if claims.get("role") == "organizer" and str(event.organizer_id) != str(user_id):
         return jsonify({"message": "You don't have access to this event."}), 403
 
-    data = request.get_json()
+    data = request.form
 
-    for field in ["nama", "deskripsi", "artis", "tanggal", "waktu", "lokasi", "poster_url", "status"]:
+    for field in ["nama", "deskripsi", "artis", "tanggal", "waktu", "lokasi", "status", "layout_type"]:
         if field in data:
             setattr(event, field, data[field])
+
+    if "zone_mapping" in data:
+        try:
+            event.zone_mapping = json.loads(data["zone_mapping"])
+        except (ValueError, TypeError):
+            return jsonify({"message": "zone_mapping harus berupa JSON valid"}), 400
+
+    if 'poster' in request.files:
+        file = request.files['poster']
+        if file and file.filename and allowed_file(file.filename):
+            filename = secure_filename(f"{user_id}_{int(datetime.now().timestamp())}_{file.filename}")
+            filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            event.poster_url = f"/static/uploads/{filename}"
 
     db.session.commit()
 

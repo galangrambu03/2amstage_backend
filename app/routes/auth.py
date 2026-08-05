@@ -55,7 +55,7 @@ def login():
     )
     return jsonify({
         "message": 'Login Success!',
-        'access_tokes' : access_token,
+        'access_token' : access_token,
         "user": user.to_dict()
     }), 200
 
@@ -77,5 +77,5 @@ def get_me():
 @role_required("super_admin", "organizer")
 def admin_only():
     return jsonify({
-        "message": "You have been succes for accessing admin/organizer endpoint!"
+        "message": "You have been success for accessing admin/organizer endpoint!"
     })

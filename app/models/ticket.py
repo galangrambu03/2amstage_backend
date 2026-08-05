@@ -14,7 +14,8 @@ class Ticket(db.Model):
         default="unused"
     )
     used_at = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
     def to_dict(self, include_qr=True):
         data = {
@@ -23,6 +24,7 @@ class Ticket(db.Model):
             "ticket_code": self.ticket_code,
             "status": self.status,
             "used_at": self.used_at.isoformat() if self.used_at else None,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
         }
         if include_qr:
             data["qr_code_base64"] = self.qr_code_base64

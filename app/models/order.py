@@ -13,7 +13,7 @@ class Order(db.Model):
         nullable=False,
         default="pending"
     )
-    waktu_order = db.Column(db.DateTime, default=datetime.utcnow)
+    waktu_order = db.Column(db.DateTime, default=datetime.now)
     expired_at = db.Column(db.DateTime, nullable=True)
     paid_at = db.Column(db.DateTime, nullable=True)
 

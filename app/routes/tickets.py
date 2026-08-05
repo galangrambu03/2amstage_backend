@@ -50,21 +50,27 @@ def validate_ticket():
     if ticket.status == "used":
         return jsonify({
             "status": "already_used",
-            "message": f"Ticket has been used for {ticket.used_at.isoformat() if ticket.used_at else '-'}"
+            "message": f"Tiket sudah pernah digunakan pada {ticket.used_at.isoformat() if ticket.used_at else '-'}"
         }), 400
-    
+
     if ticket.status == "void":
         return jsonify({
-            "status":"void",
-            "message":"This ticket was expired (void)"
+            "status": "void",
+            "message": "Tiket ini sudah tidak berlaku (void)"
         }), 400
-    
-    ticket.status = 'used'
-    ticket.used_at = datetime.utcnow()
+
+    if ticket.expires_at and datetime.now() > ticket.expires_at:   
+        return jsonify({
+            "status": "expired",
+            "message": f"Tiket sudah kedaluwarsa sejak {ticket.expires_at.isoformat()}"
+        }), 400
+
+    ticket.status = "used"
+    ticket.used_at = datetime.now()   
     db.session.commit()
 
     return jsonify({
         "status": "success",
-        "message": "Tickes valid, check-in success!",
+        "message": "Ticket valid, check-in success!",
         "ticket": ticket.to_dict(include_qr=False)
     }), 200
