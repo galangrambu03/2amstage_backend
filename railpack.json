@@ -1,5 +1,8 @@
 {
-  "$schema": "https://railpack.com/config/schema.json",
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "NIXPACKS"
+  },
   "deploy": {
     "startCommand": "gunicorn run:app"
   }
