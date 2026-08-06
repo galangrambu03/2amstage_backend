@@ -2,6 +2,7 @@ Flask
 Flask-SQLAlchemy
 Flask-CORS
 Flask-JWT-Extended
+Flask-Mail
 PyMySQL
 python-dotenv
 qrcode

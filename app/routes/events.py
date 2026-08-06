@@ -2,8 +2,9 @@ from flask import Blueprint, request, jsonify
 from app import db
 from app.models.event import Event
 from app.utils.decorators import role_required
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 import os
+import json
 from werkzeug.utils import secure_filename
 from flask import current_app
 from datetime import datetime
@@ -27,6 +28,28 @@ def get_all_event():
         data['progress_percent'] = round((terjual / total_kuota) * 100) if total_kuota > 0 else 0
         harga_list = [tc.harga for tc in e.ticket_categories]
         data['harga_termurah'] = min(harga_list) if harga_list else None
+        result.append(data)
+    return jsonify(result), 200
+
+@events_bp.route('/mine', methods=['GET'])
+@role_required('organizer', 'super_admin')
+def get_my_events():
+    claims = get_jwt()
+    user_id = get_jwt_identity()
+
+    query = Event.query
+    if claims.get('role') == 'organizer':
+        query = query.filter_by(organizer_id=user_id)
+
+    events = query.order_by(Event.created_at.desc()).all()
+    result = []
+    for e in events:
+        data = e.to_dict()
+        total_kuota = sum(tc.kuota for tc in e.ticket_categories)
+        total_sisa = sum(tc.sisa_kuota for tc in e.ticket_categories)
+        terjual = total_kuota - total_sisa
+        data['progress_percent'] = round((terjual / total_kuota) * 100) if total_kuota > 0 else 0
+        data['total_kategori'] = len(e.ticket_categories)
         result.append(data)
     return jsonify(result), 200
 

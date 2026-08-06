@@ -6,6 +6,8 @@ from app.models.order import Order
 from app.models.order_detail import OrderDetail
 from app.models.ticket import Ticket
 from app.utils.qr_generator import generate_qr_base64, generate_ticket_code
+from app.utils.email_service import send_ticket_email
+from app.models.user import User
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
 from datetime import time as dtime
@@ -131,6 +133,13 @@ def pay_order(order_id):
         
     db.session.commit()
 
+    # Kirim email tiket (best-effort — kegagalan email tidak menggagalkan pembayaran)
+    user = User.query.get(user_id)
+    if user:
+        send_ticket_email(user, order, event, generated_tickets, order.order_details, [
+            TicketCategory.query.get(d.ticket_category_id) for d in order.order_details
+        ])
+
     return jsonify({
         "message": "payment success, ticket has been made!",
         "order": order.to_dict(),
@@ -143,6 +152,31 @@ def get_my_orders():
     user_id = get_jwt_identity()
     orders = Order.query.filter_by(user_id=user_id).order_by(Order.waktu_order.desc()).all()
     return jsonify([o.to_dict() for o in orders]), 200
+
+
+@orders_bp.route("/<int:order_id>/resend-email", methods=["POST"])
+@jwt_required()
+def resend_ticket_email(order_id):
+    user_id = get_jwt_identity()
+    order = Order.query.get(order_id)
+
+    if not order:
+        return jsonify({"message": "order not found."}), 404
+    if str(order.user_id) != str(user_id):
+        return jsonify({"message": "This order was not yours :("}), 403
+    if order.status_pembayaran != "paid":
+        return jsonify({"message": "Order belum dibayar, belum ada tiket untuk dikirim."}), 400
+
+    user = User.query.get(user_id)
+    event = Event.query.get(order.event_id)
+    tickets = [t for d in order.order_details for t in d.tickets]
+    categories = [TicketCategory.query.get(d.ticket_category_id) for d in order.order_details]
+
+    sent = send_ticket_email(user, order, event, tickets, order.order_details, categories)
+    if not sent:
+        return jsonify({"message": "Gagal mengirim email, coba lagi beberapa saat lagi."}), 502
+
+    return jsonify({"message": "Tiket berhasil dikirim ulang ke email kamu."}), 200
 
 
         
