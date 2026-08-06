@@ -1,10 +1,8 @@
-from flask import render_template, current_app
-from flask_mail import Message
-from PIL import Image
+import base64
 import os
-import socket
-import traceback
-from app import mail
+import requests
+from flask import render_template, current_app
+from PIL import Image
 from app.utils.ticket_image import render_tickets_pngs, render_tickets_pdf
 
 
@@ -44,23 +42,14 @@ def send_ticket_email(user, order, event, tickets, order_details, categories):
         return False
 
     try:
-        current_app.logger.info("========== EMAIL DEBUG ==========")
-        current_app.logger.info(f"MAIL_SERVER: {current_app.config.get('MAIL_SERVER')}")
-        current_app.logger.info(f"MAIL_PORT: {current_app.config.get('MAIL_PORT')}")
-        current_app.logger.info(f"MAIL_USE_TLS: {current_app.config.get('MAIL_USE_TLS')}")
-        current_app.logger.info(f"MAIL_USERNAME: {current_app.config.get('MAIL_USERNAME')}")
-        current_app.logger.info(f"MAIL_DEFAULT_SENDER: {current_app.config.get('MAIL_DEFAULT_SENDER')}")
-
-        # Tes koneksi SMTP
-        current_app.logger.info("Mencoba koneksi SMTP...")
-        socket.create_connection(
-            (
-                current_app.config["MAIL_SERVER"],
-                current_app.config["MAIL_PORT"],
-            ),
-            timeout=5,
-        )
-        current_app.logger.info("SMTP CONNECT OK")
+        current_app.logger.info("========== EMAIL DEBUG (BREVO API) ==========")
+        
+        # Ambil API Key dari Config / Environment
+        api_key = current_app.config.get("BREVO_API_KEY") or os.getenv("BREVO_API_KEY")
+        
+        if not api_key:
+            current_app.logger.error("BREVO_API_KEY belum dikonfigurasi!")
+            return False
 
         category_by_id = {c.id: c for c in categories}
         category_by_detail = {
@@ -77,7 +66,7 @@ def send_ticket_email(user, order, event, tickets, order_details, categories):
             for d in order_details
         ]
 
-        html = render_template(
+        html_content = render_template(
             "email/ticket_email.html",
             user=user,
             order=order,
@@ -89,14 +78,12 @@ def send_ticket_email(user, order, event, tickets, order_details, categories):
             total_display=_format_idr(float(order.total_harga)),
         )
 
-        msg = Message(
-            subject=f"Tiket kamu untuk {event.nama} sudah siap",
-            recipients=[user.email],
-            html=html,
-        )
-
         poster_img = _load_poster_image(event)
 
+        # List untuk menampung semua attachment dalam format Base64
+        attachments = []
+
+        # 1. Attach PNG Tiket
         for filename, png_bytes in render_tickets_pngs(
             tickets,
             event,
@@ -104,8 +91,12 @@ def send_ticket_email(user, order, event, tickets, order_details, categories):
             order,
             poster_img=poster_img,
         ):
-            msg.attach(filename, "image/png", png_bytes)
+            attachments.append({
+                "name": filename,
+                "content": base64.b64encode(png_bytes).decode('utf-8')
+            })
 
+        # 2. Attach PDF Tiket
         pdf_bytes = render_tickets_pdf(
             tickets,
             event,
@@ -115,21 +106,53 @@ def send_ticket_email(user, order, event, tickets, order_details, categories):
         )
 
         if pdf_bytes:
-            msg.attach(
-                f"tiket-order-{order.id}.pdf",
-                "application/pdf",
-                pdf_bytes,
-            )
+            attachments.append({
+                "name": f"tiket-order-{order.id}.pdf",
+                "content": base64.b64encode(pdf_bytes).decode('utf-8')
+            })
 
-        current_app.logger.info("Mengirim email...")
+        # Menyiapkan payload untuk Brevo REST API
+        sender_email = current_app.config.get("MAIL_DEFAULT_SENDER_EMAIL", "galangciko86@gmail.com")
+        sender_name = current_app.config.get("MAIL_DEFAULT_SENDER_NAME", "2AMSTAGE")
 
-        mail.send(msg)
+        payload = {
+            "sender": {
+                "name": sender_name,
+                "email": sender_email
+            },
+            "to": [
+                {
+                    "email": user.email,
+                    "name": getattr(user, 'nama', user.email)
+                }
+            ],
+            "subject": f"Tiket kamu untuk {event.nama} sudah siap",
+            "htmlContent": html_content,
+            "attachment": attachments
+        }
 
-        current_app.logger.info("EMAIL BERHASIL TERKIRIM")
+        headers = {
+            "accept": "application/json",
+            "api-key": api_key,
+            "content-type": "application/json"
+        }
 
-        return True
+        current_app.logger.info("Mengirim email via Brevo REST API...")
+        
+        response = requests.post(
+            "https://api.brevo.com/v3/smtp/email",
+            json=payload,
+            headers=headers,
+            timeout=30
+        )
+
+        if response.status_code in [200, 201, 202]:
+            current_app.logger.info(f"EMAIL BERHASIL TERKIRIM! Response: {response.json()}")
+            return True
+        else:
+            current_app.logger.error(f"GAGAL MENGIRIM EMAIL (Status {response.status_code}): {response.text}")
+            return False
 
     except Exception:
-        current_app.logger.exception("GAGAL MENGIRIM EMAIL")
-        traceback.print_exc()
+        current_app.logger.exception("GAGAL MENGIRIM EMAIL (EXCEPTION)")
         return False
