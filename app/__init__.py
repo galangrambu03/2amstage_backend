@@ -17,7 +17,7 @@ def create_app():
     db.init_app(app)
     jwt.init_app(app)
     mail.init_app(app)
-    CORS(app, resources={r"/api/*": {"origins": "https://2amstagebackend-production.up.railway.app"}}, supports_credentials=True)
+    CORS(app, resources={r"/api/*": {"origins": "https://2amstagefrontend-production.up.railway.app"}}, supports_credentials=True)
     app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
