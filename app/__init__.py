@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
@@ -18,8 +18,18 @@ def create_app():
     jwt.init_app(app)
     mail.init_app(app)
     CORS(app, resources={r"/api/*": {"origins": "https://2amstagefrontend-production.up.railway.app"}}, supports_credentials=True)
-    app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
+
+    # UPLOAD_FOLDER bisa dialihin lewat env var ke folder Railway Volume
+    # (misal /data/uploads) biar file yang di-upload nggak ikut hilang tiap redeploy.
+    # Kalau env var nggak di-set, fallback ke folder lokal biasa (buat development).
+    app.config['UPLOAD_FOLDER'] = os.getenv(
+        'UPLOAD_FOLDER', os.path.join(app.root_path, 'static', 'uploads')
+    )
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+    @app.route('/static/uploads/<path:filename>')
+    def uploaded_file(filename):
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
     with app.app_context():
         from app.models import user
