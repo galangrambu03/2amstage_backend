@@ -59,3 +59,37 @@ def follow_status(user_id):
         "is_followed_by": followed_by,
         "is_mutual": following and followed_by,
     }), 200
+
+
+def _serialize_user_list(users, me):
+    my_following_ids = {f.following_id for f in Follow.query.filter_by(follower_id=me).all()}
+    return [
+        {**u.to_dict(include_email=False), "is_following": u.id in my_following_ids}
+        for u in users
+    ]
+
+
+@follows_bp.route("/<int:user_id>/followers", methods=["GET"])
+@jwt_required()
+def list_followers(user_id):
+    me = int(get_jwt_identity())
+    target = User.query.get(user_id)
+    if not target:
+        return jsonify({"message": "User tidak ditemukan."}), 404
+
+    rows = Follow.query.filter_by(following_id=user_id).order_by(Follow.created_at.desc()).all()
+    users = [User.query.get(r.follower_id) for r in rows]
+    return jsonify({"users": _serialize_user_list(users, me)}), 200
+
+
+@follows_bp.route("/<int:user_id>/following", methods=["GET"])
+@jwt_required()
+def list_following(user_id):
+    me = int(get_jwt_identity())
+    target = User.query.get(user_id)
+    if not target:
+        return jsonify({"message": "User tidak ditemukan."}), 404
+
+    rows = Follow.query.filter_by(follower_id=user_id).order_by(Follow.created_at.desc()).all()
+    users = [User.query.get(r.following_id) for r in rows]
+    return jsonify({"users": _serialize_user_list(users, me)}), 200

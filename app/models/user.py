@@ -32,6 +32,8 @@ class User(db.Model):
         )
 
     def to_dict(self, include_email=True):
+        from app.models.follow import Follow
+
         data = {
             "id": self.id,
             "nama": self.nama,
@@ -39,6 +41,8 @@ class User(db.Model):
             "username": self.username,
             "avatar_url": self.avatar_url,
             "bio": self.bio,
+            "followers_count": Follow.query.filter_by(following_id=self.id).count(),
+            "following_count": Follow.query.filter_by(follower_id=self.id).count(),
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
         if include_email:
