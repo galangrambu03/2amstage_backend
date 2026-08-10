@@ -6,6 +6,7 @@ from app.models.message import Message
 from app.models.follow import Follow
 from app.models.user import User
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.routes.push import send_push_to_user
 
 chat_bp = Blueprint("chat", __name__, url_prefix="/api/chat")
 
@@ -145,5 +146,14 @@ def send_message(convo_id):
     message = Message(conversation_id=convo_id, sender_id=me, isi=isi)
     db.session.add(message)
     db.session.commit()
+
+    sender = User.query.get(me)
+    for o in others:
+        send_push_to_user(
+            o.user_id,
+            title=sender.nama if sender else "Pesan baru",
+            body=isi,
+            url=f"/chat/{convo_id}",
+        )
 
     return jsonify({"message": "Pesan terkirim.", "data": message.to_dict()}), 201
