@@ -3,7 +3,10 @@ import os
 import requests
 from flask import render_template, current_app
 from PIL import Image
-from app.utils.ticket_image import render_tickets_pngs, render_tickets_pdf
+
+# Import generator PNG dari ticket_image dan generator PDF baru dari pdf_service
+from app.utils.ticket_image import render_tickets_pngs
+from app.utils.pdf_service import generate_tickets_pdf
 
 
 def _format_idr(amount):
@@ -57,6 +60,9 @@ def send_ticket_email(user, order, event, tickets, order_details, categories):
             for d in order_details
         }
 
+        tanggal_display = _format_tanggal(event.tanggal)
+        waktu_display = (event.waktu.strftime("%H:%M") + " WIB") if event.waktu else "-"
+
         items = [
             {
                 "nama_kategori": category_by_id.get(d.ticket_category_id).nama_kategori,
@@ -66,6 +72,7 @@ def send_ticket_email(user, order, event, tickets, order_details, categories):
             for d in order_details
         ]
 
+        # 1. Render isi email HTML
         html_content = render_template(
             "email/ticket_email.html",
             user=user,
@@ -73,8 +80,8 @@ def send_ticket_email(user, order, event, tickets, order_details, categories):
             event=event,
             items=items,
             tickets=tickets,
-            tanggal_display=_format_tanggal(event.tanggal),
-            waktu_display=(event.waktu.strftime("%H:%M") + " WIB") if event.waktu else "-",
+            tanggal_display=tanggal_display,
+            waktu_display=waktu_display,
             total_display=_format_idr(float(order.total_harga)),
         )
 
@@ -83,7 +90,7 @@ def send_ticket_email(user, order, event, tickets, order_details, categories):
         # List untuk menampung semua attachment dalam format Base64
         attachments = []
 
-        # 1. Attach PNG Tiket
+        # 2. Attach PNG Tiket (Opsional)
         for filename, png_bytes in render_tickets_pngs(
             tickets,
             event,
@@ -96,13 +103,14 @@ def send_ticket_email(user, order, event, tickets, order_details, categories):
                 "content": base64.b64encode(png_bytes).decode('utf-8')
             })
 
-        # 2. Attach PDF Tiket
-        pdf_bytes = render_tickets_pdf(
-            tickets,
-            event,
-            category_by_detail,
-            order,
-            poster_img=poster_img,
+        # 3. Attach PDF Tiket (Menggunakan HTML Template ticket_pdf.html & Playwright)
+        pdf_bytes = generate_tickets_pdf(
+            tickets=tickets,
+            event=event,
+            category_by_detail=category_by_detail,
+            order=order,
+            tanggal_display=tanggal_display,
+            waktu_display=waktu_display
         )
 
         if pdf_bytes:
