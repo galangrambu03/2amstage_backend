@@ -1,20 +1,20 @@
 import base64
 import io
-from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps, ImageChops
 
-# --- Theme colors (Matches Tailwind & React UI) ---
-C_VOID = (11, 10, 16)
-C_SURFACE = (22, 20, 30)
-C_SURFACE2 = (32, 29, 43)
-C_SURFACE3 = (42, 38, 55)
-C_STAGE = (255, 46, 99)
-C_AMBER = (255, 201, 60)
-C_VIOLET = (140, 111, 255)
-C_HI = (247, 245, 251)
-C_MID = (180, 175, 199)
-C_DIM = (113, 108, 135)
-C_EMERALD = (52, 211, 153)       # emerald-400
-C_EMERALD_BG = (16, 52, 40)     # bg-emerald-400/10
+# --- Colors matching the screenshot design ---
+C_BG = (14, 14, 18)            # Deep dark background
+C_CARD = (22, 22, 26)          # Card surface color
+C_CATEGORY = (255, 75, 85)     # Coral / Pinkish Red ("TIKET")
+C_WHITE = (255, 255, 255)      # Primary Title & Details
+C_MUTED = (156, 163, 175)      # Subtitle / Muted text
+C_DIM = (100, 110, 125)        # Code / Dim text
+C_YELLOW = (234, 200, 20)      # Bright Yellow for Icons & "Simpan"
+
+# Status colors
+C_GREEN_TEXT = (34, 197, 94)   # Bright green text & outline
+C_GREEN_BG = (6, 40, 25)       # Dark green pill fill
+C_DASH_LINE = (50, 52, 65)     # Dashed separator line
 
 _FONT_PATHS = {
     "bold": [
@@ -27,14 +27,17 @@ _FONT_PATHS = {
     ],
 }
 
+# High DPI scale factor (2x crisp resolution)
 _S = 2
-W, H = 1200 * _S, 380 * _S
-POSTER_W = 240 * _S
-STUB_W = 280 * _S
-RADIUS = 28 * _S
+W_OUT, H_OUT = 1000, 340
+W, H = W_OUT * _S, H_OUT * _S
+POSTER_W = 230 * _S
+STUB_W = 230 * _S
+RADIUS = 24 * _S
 
 
 def _font(weight, size):
+    """Loads font with scaled pixel size for high DPI rendering."""
     for path in _FONT_PATHS.get(weight, []):
         try:
             return ImageFont.truetype(path, size * _S)
@@ -45,231 +48,281 @@ def _font(weight, size):
 
 def _format_tanggal(tanggal):
     if not tanggal:
-        return "-"
-    return f"{tanggal.strftime('%A')}, {tanggal.day} {tanggal.strftime('%b')} {tanggal.year}"
+        return "Senin, 10 Agu 2026"
+    
+    bulan_map = {
+        1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "Mei", 6: "Jun",
+        7: "Jul", 8: "Agu", 9: "Sep", 10: "Okt", 11: "Nov", 12: "Des"
+    }
+    hari_map = {
+        "Monday": "Senin", "Tuesday": "Selasa", "Wednesday": "Rabu",
+        "Thursday": "Kamis", "Friday": "Jumat", "Saturday": "Sabtu", "Sunday": "Minggu"
+    }
+    
+    try:
+        nama_hari = hari_map.get(tanggal.strftime('%A'), tanggal.strftime('%A'))
+        nama_bulan = bulan_map.get(tanggal.month, tanggal.strftime('%b'))
+        return f"{nama_hari}, {tanggal.day} {nama_bulan} {tanggal.year}"
+    except Exception:
+        return str(tanggal)
 
 
-def _format_datetime(dt):
-    if not dt:
-        return "-"
-    return dt.strftime("%d %b %Y, %H:%M") + " WIB"
+def _format_waktu(waktu):
+    if not waktu:
+        return "19:00 WIB"
+    try:
+        return waktu.strftime("%H:%M") + " WIB"
+    except Exception:
+        return str(waktu)
 
 
-def _lerp_color(c1, c2, t):
-    return tuple(int(c1[i] + (c2[i] - c1[i]) * t) for i in range(3))
+# --- Vector Icon Drawing Functions ---
+
+def _draw_calendar_icon(draw, x, y, size, color):
+    w = max(2, size // 10)
+    # Outer box
+    draw.rounded_rectangle([x, y + size * 0.2, x + size, y + size], radius=size * 0.15, outline=color, width=w)
+    # Header filled bar
+    draw.rectangle([x, y + size * 0.2, x + size, y + size * 0.45], fill=color)
+    # Ring pegs
+    r_w = max(2, size // 8)
+    draw.line([(x + size * 0.3, y), (x + size * 0.3, y + size * 0.25)], fill=color, width=r_w)
+    draw.line([(x + size * 0.7, y), (x + size * 0.7, y + size * 0.25)], fill=color, width=r_w)
 
 
-def _diagonal_gradient(size, c1, c2):
-    w, h = size
-    grad = Image.new("RGB", size)
-    px = grad.load()
-    for y in range(h):
-        t_row = y / max(h - 1, 1)
-        for x in range(0, w, 4):
-            t = (t_row + (x / max(w - 1, 1))) / 2
-            col = _lerp_color(c1, c2, min(t, 1))
-            for dx in range(4):
-                if x + dx < w:
-                    px[x + dx, y] = col
-    return grad
+def _draw_clock_icon(draw, x, y, size, color):
+    w = max(2, size // 10)
+    draw.ellipse([x, y, x + size, y + size], outline=color, width=w)
+    cx, cy = x + size / 2, y + size / 2
+    draw.line([(cx, cy), (cx, y + size * 0.25)], fill=color, width=w)
+    draw.line([(cx, cy), (cx + size * 0.25, cy)], fill=color, width=w)
 
 
-def _rounded_mask(size, radius):
-    mask = Image.new("L", size, 0)
-    ImageDraw.Draw(mask).rounded_rectangle((0, 0, size[0], size[1]), radius=radius, fill=255)
-    return mask
+def _draw_pin_icon(draw, x, y, size, color):
+    w = max(2, size // 10)
+    r = size * 0.35
+    cx, cy = x + size / 2, y + r
+    draw.ellipse([cx - r, cy - r, cx + r, cy + r], outline=color, width=w)
+    ir = size * 0.12
+    draw.ellipse([cx - ir, cy - ir, cx + ir, cy + ir], fill=color)
+    draw.line([(cx - r * 0.7, cy + r * 0.6), (cx, y + size)], fill=color, width=w)
+    draw.line([(cx + r * 0.7, cy + r * 0.6), (cx, y + size)], fill=color, width=w)
 
 
-def _poster_panel(poster_img, event_label):
+def _draw_download_icon(draw, x, y, size, color):
+    w = max(2, size // 10)
+    cx = x + size / 2
+    draw.line([(cx, y), (cx, y + size * 0.6)], fill=color, width=w)
+    draw.line([(cx - size * 0.25, y + size * 0.35), (cx, y + size * 0.6)], fill=color, width=w)
+    draw.line([(cx + size * 0.25, y + size * 0.35), (cx, y + size * 0.6)], fill=color, width=w)
+    draw.line([(x + size * 0.1, y + size * 0.85), (x + size * 0.9, y + size * 0.85)], fill=color, width=w)
+
+
+def _draw_dashed_line(draw, x, y_start, y_end, color, dash_len=10, gap_len=8, width=3):
+    for y in range(y_start, y_end, dash_len + gap_len):
+        draw.line([(x, y), (x, min(y + dash_len, y_end))], fill=color, width=width)
+
+
+def _poster_panel(poster_img, event_name):
+    """Renders crisp poster image cleanly fitted to the left panel."""
+    panel = Image.new("RGB", (POSTER_W, H), C_CARD)
+    
     if poster_img:
-        src = poster_img.convert("RGB")
-        src_ratio = src.width / src.height
-        dst_ratio = POSTER_W / H
-        if src_ratio > dst_ratio:
-            new_h = H
-            new_w = int(H * src_ratio)
-        else:
-            new_w = POSTER_W
-            new_h = int(POSTER_W / src_ratio)
-        src = src.resize((new_w, new_h), Image.LANCZOS)
-        left = (new_w - POSTER_W) // 2
-        top = (new_h - H) // 2
-        panel = src.crop((left, top, left + POSTER_W, top + H))
+        try:
+            if isinstance(poster_img, bytes):
+                src = Image.open(io.BytesIO(poster_img)).convert("RGB")
+            elif isinstance(poster_img, str):
+                src = Image.open(poster_img).convert("RGB")
+            else:
+                src = poster_img.convert("RGB")
 
-        scrim = Image.new("L", (POSTER_W, H), 0)
-        sd = ImageDraw.Draw(scrim)
-        for xx in range(POSTER_W):
-            t = xx / max(POSTER_W - 1, 1)
-            sd.line([(xx, 0), (xx, H)], fill=int(20 + 180 * t))
-        black = Image.new("RGB", (POSTER_W, H), C_SURFACE)
-        panel = Image.composite(black, panel, scrim)
-        return panel
+            src_ratio = src.width / src.height
+            dst_ratio = POSTER_W / H
 
-    panel = _diagonal_gradient((POSTER_W, H), C_SURFACE3, (26, 22, 36))
-    glow = Image.new("RGBA", (POSTER_W, H), (0, 0, 0, 0))
-    gd = ImageDraw.Draw(glow)
-    cx, cy = POSTER_W // 2, int(H * 0.32)
-    gd.ellipse((cx - 160 * _S, cy - 160 * _S, cx + 160 * _S, cy + 160 * _S), fill=(*C_STAGE, 70))
-    glow = glow.filter(ImageFilter.GaussianBlur(60 * _S))
-    panel = Image.alpha_composite(panel.convert("RGBA"), glow).convert("RGB")
+            if src_ratio > dst_ratio:
+                new_h = H
+                new_w = int(H * src_ratio)
+            else:
+                new_w = POSTER_W
+                new_h = int(POSTER_W / src_ratio)
 
+            src = src.resize((new_w, new_h), Image.LANCZOS)
+            left = (new_w - POSTER_W) // 2
+            top = (new_h - H) // 2
+            panel = src.crop((left, top, left + POSTER_W, top + H))
+            return panel
+        except Exception:
+            pass
+
+    # Default fallback poster if image is missing
     d = ImageDraw.Draw(panel)
-    f_mono = _font("bold", 15)
-    label = (event_label or "2AMSTAGE")[:22].upper()
-    d.text((28 * _S, H - 46 * _S), label, font=f_mono, fill=C_MID)
+    d.rectangle([0, 0, POSTER_W, H], fill=(30, 28, 40))
+    f_mono = _font("bold", 18)
+    label = (event_name or "STAGE").upper()[:18]
+    d.text((20 * _S, H // 2), label, font=f_mono, fill=C_MUTED)
     return panel
 
 
-def _perforation(draw, x, top, bottom, bg_color):
-    notch_r = 10 * _S
-    gap = 24 * _S
-    y = top
-    while y < bottom:
-        draw.ellipse((x - notch_r, y - notch_r, x + notch_r, y + notch_r), fill=bg_color)
-        y += gap
-
-
 def render_ticket_png(ticket, event, category, order, poster_img=None):
-    """Draws one ticket card as a PNG, mirroring the React QRTicket component strictly."""
-    base = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    card = Image.new("RGB", (W, H), C_SURFACE)
+    """Draws a clean, human-readable ticket card identical to the UI design."""
+    
+    # 1. Base Card Image
+    card = Image.new("RGB", (W, H), C_CARD)
     draw = ImageDraw.Draw(card)
 
-    panel = _poster_panel(poster_img, event.artis or event.nama)
+    # 2. Poster Panel (Left)
+    artis_name = getattr(event, 'artis', None) or getattr(event, 'nama', 'Konser')
+    panel = _poster_panel(poster_img, artis_name)
     card.paste(panel, (0, 0))
 
-    stub_x = W - STUB_W
-    _perforation(draw, stub_x, -10 * _S, H + 10 * _S, C_VOID)
-
+    # 3. Fonts Setup (Readable & Scaled)
     f_cat = _font("bold", 14)
-    f_title = _font("bold", 36)
-    f_sub = _font("regular", 20)
-    f_meta = _font("regular", 18)
-    f_badge = _font("bold", 15)
-    f_code = _font("regular", 14)
+    f_title = _font("bold", 30)
+    f_sub = _font("regular", 18)
+    f_meta = _font("regular", 17)
+    f_badge = _font("bold", 14)
+    f_code = _font("regular", 13)
+    f_simpan = _font("bold", 15)
 
-    x = POSTER_W + 40 * _S
+    # Main Area Coordinates
+    x = POSTER_W + 35 * _S
+    stub_x = W - STUB_W
 
-    cat_name = getattr(category, 'nama_kategori', str(category)) if category else "TIKET"
-    draw.text((x, 32 * _S), cat_name.upper(), font=f_cat, fill=C_AMBER)
+    # 4. Header / Category ("TIKET")
+    cat_text = getattr(category, 'nama_kategori', None) or "TIKET"
+    draw.text((x, 32 * _S), cat_text.upper(), font=f_cat, fill=C_CATEGORY)
 
-    title_text = event.artis or event.nama or "Konser"
-    draw.text((x, 56 * _S), title_text, font=f_title, fill=C_HI)
-
-    curr_y = 112 * _S
-    if event.artis and event.nama:
-        draw.text((x, curr_y), event.nama, font=f_sub, fill=C_MID)
-        curr_y += 32 * _S
-
-    tanggal = _format_tanggal(event.tanggal) if hasattr(event, 'tanggal') else "-"
-    waktu = (event.waktu.strftime("%H:%M") + " WIB") if getattr(event, 'waktu', None) else "-"
-    lokasi = getattr(event, 'lokasi', "-")
-
-    meta_y = curr_y + 12 * _S
-    draw.text((x, meta_y), f"📅  {tanggal}", font=f_meta, fill=C_MID)
-    draw.text((x, meta_y + 32 * _S), f"⏰  {waktu}", font=f_meta, fill=C_MID)
-    draw.text((x, meta_y + 64 * _S), f"📍  {lokasi}", font=f_meta, fill=C_MID)
-
-    if ticket.status == "used" and getattr(ticket, 'used_at', None):
-        draw.text(
-            (x, meta_y + 104 * _S),
-            f"Check-in pada {_format_datetime(ticket.used_at)}",
-            font=f_code,
-            fill=C_DIM
-        )
-
-    is_active = ticket.status == "unused"
-    if is_active:
-        status_label = "Aktif"
-        badge_fg = C_EMERALD
-        badge_bg = C_EMERALD_BG
-    elif ticket.status == "used":
-        status_label = "Sudah Check-in"
-        badge_fg = C_MID
-        badge_bg = C_SURFACE2
+    # 5. Artist Title & Event Subtitle
+    draw.text((x, 62 * _S), artis_name, font=f_title, fill=C_WHITE)
+    
+    curr_y = 118 * _S
+    event_nama = getattr(event, 'nama', None)
+    if event_nama and event_nama != artis_name:
+        draw.text((x, curr_y), event_nama, font=f_sub, fill=C_MUTED)
+        curr_y += 36 * _S
     else:
-        status_label = "Tidak Berlaku"
-        badge_fg = C_STAGE
-        badge_bg = (60, 20, 30)
+        curr_y += 8 * _S
 
-    bbox = draw.textbbox((0, 0), status_label, font=f_badge)
-    bw = bbox[2] - bbox[0] + 48 * _S
-    bh = 32 * _S
-    badge_x = stub_x - bw - 30 * _S
+    # 6. Details Row 1: Tanggal & Waktu (Side-by-Side)
+    tgl_text = _format_tanggal(getattr(event, 'tanggal', None))
+    wkt_text = _format_waktu(getattr(event, 'waktu', None))
+
+    icon_s = 20 * _S
+    _draw_calendar_icon(draw, x, curr_y + 2 * _S, icon_s, C_YELLOW)
+    draw.text((x + 28 * _S, curr_y), tgl_text, font=f_meta, fill=C_WHITE)
+
+    # Calculate offset for Clock Icon
+    tgl_bbox = draw.textbbox((0, 0), tgl_text, font=f_meta)
+    clock_x = x + 28 * _S + (tgl_bbox[2] - tgl_bbox[0]) + 35 * _S
+
+    _draw_clock_icon(draw, clock_x, curr_y + 2 * _S, icon_s, C_YELLOW)
+    draw.text((clock_x + 28 * _S, curr_y), wkt_text, font=f_meta, fill=C_WHITE)
+
+    # 7. Details Row 2: Lokasi
+    curr_y += 42 * _S
+    lokasi_text = getattr(event, 'lokasi', '-') or '-'
+    _draw_pin_icon(draw, x, curr_y + 2 * _S, icon_s, C_YELLOW)
+    draw.text((x + 28 * _S, curr_y), lokasi_text, font=f_meta, fill=C_WHITE)
+
+    # 8. Status Badge ("AKTIF") - Top Right
+    badge_label = "AKTIF" if ticket.status == "unused" else "SUDAH DIPAKAI"
+    badge_color = C_GREEN_TEXT if ticket.status == "unused" else C_MUTED
+    badge_bg = C_GREEN_BG if ticket.status == "unused" else (35, 35, 45)
+
+    badge_bbox = draw.textbbox((0, 0), badge_label, font=f_badge)
+    bw = badge_bbox[2] - badge_bbox[0] + 50 * _S
+    bh = 34 * _S
+    badge_x = stub_x - bw - 35 * _S
     badge_y = 32 * _S
 
     draw.rounded_rectangle(
-        (badge_x, badge_y, badge_x + bw, badge_y + bh),
-        radius=bh // 2,
-        fill=badge_bg,
-        outline=badge_fg,
-        width=1 * _S
+        [badge_x, badge_y, badge_x + bw, badge_y + bh],
+        radius=bh // 2, fill=badge_bg, outline=badge_color, width=2 * _S
     )
+    
+    # Checkmark Icon inside Badge
+    chk_cx, chk_cy = badge_x + 18 * _S, badge_y + bh // 2
+    r_c = 6 * _S
+    draw.ellipse([chk_cx - r_c, chk_cy - r_c, chk_cx + r_c, chk_cy + r_c], outline=badge_color, width=2 * _S)
+    draw.line([(chk_cx - 3 * _S, chk_cy), (chk_cx - 1 * _S, chk_cy + 2 * _S), (chk_cx + 3 * _S, chk_cy - 3 * _S)], fill=badge_color, width=2 * _S)
+    
+    draw.text((badge_x + 32 * _S, badge_y + 6 * _S), badge_label, font=f_badge, fill=badge_color)
 
-    ic_x, ic_y = badge_x + 16 * _S, badge_y + bh // 2
-    r = 6 * _S
-    draw.ellipse((ic_x - r, ic_y - r, ic_x + r, ic_y + r), outline=badge_fg, width=int(1.5 * _S))
-    if is_active:
-        draw.line([(ic_x - 3*_S, ic_y), (ic_x - 1*_S, ic_y + 2*_S), (ic_x + 3*_S, ic_y - 3*_S)], fill=badge_fg, width=2*_S)
-    else:
-        draw.line((ic_x - 3*_S, ic_y - 3*_S, ic_x + 3*_S, ic_y + 3*_S), fill=badge_fg, width=2*_S)
-        draw.line((ic_x - 3*_S, ic_y + 3*_S, ic_x + 3*_S, ic_y - 3*_S), fill=badge_fg, width=2*_S)
+    # 9. Vertical Dashed Divider
+    _draw_dashed_line(draw, stub_x, 15 * _S, H - 15 * _S, C_DASH_LINE, dash_len=12 * _S, gap_len=8 * _S, width=2 * _S)
 
-    draw.text((badge_x + 30 * _S, badge_y + 6 * _S), status_label, font=f_badge, fill=badge_fg)
+    # 10. Stub Right Side (QR Code & Actions)
+    qr_box_size = 175 * _S
+    qr_cx = stub_x + (STUB_W // 2)
+    qr_top_y = 30 * _S
 
-    qr_size = 180 * _S
-    qr_x = stub_x + (STUB_W - qr_size) // 2
-    qr_y = (H - qr_size) // 2 - 15 * _S
-
-    shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    sd = ImageDraw.Draw(shadow)
-    pad = 12 * _S
-    sd.rounded_rectangle(
-        (qr_x - pad, qr_y - pad, qr_x + qr_size + pad, qr_y + qr_size + pad),
-        radius=16 * _S, fill=(0, 0, 0, 140)
-    )
-    shadow = shadow.filter(ImageFilter.GaussianBlur(10 * _S))
-    card = Image.alpha_composite(card.convert("RGBA"), shadow).convert("RGB")
-    draw = ImageDraw.Draw(card)
-
+    # QR Container Box (White Rounded Square)
     draw.rounded_rectangle(
-        (qr_x - pad, qr_y - pad, qr_x + qr_size + pad, qr_y + qr_size + pad),
-        radius=16 * _S, fill=C_HI
+        [qr_cx - qr_box_size // 2, qr_top_y, qr_cx + qr_box_size // 2, qr_top_y + qr_box_size],
+        radius=18 * _S, fill=(255, 255, 255)
     )
 
-    if ticket.qr_code_base64:
-        qr_img = Image.open(io.BytesIO(base64.b64decode(ticket.qr_code_base64))).convert("RGB")
-        qr_img = qr_img.resize((qr_size, qr_size), Image.LANCZOS)
-        card.paste(qr_img, (qr_x, qr_y))
+    # Paste QR Image
+    if getattr(ticket, 'qr_code_base64', None):
+        try:
+            qr_raw = base64.b64decode(ticket.qr_code_base64)
+            qr_img = Image.open(io.BytesIO(qr_raw)).convert("RGB")
+            pad = 12 * _S
+            qr_size = qr_box_size - (pad * 2)
+            qr_img = qr_img.resize((qr_size, qr_size), Image.LANCZOS)
+            card.paste(qr_img, (qr_cx - qr_size // 2, qr_top_y + pad))
+        except Exception:
+            pass
 
-    code_bbox = draw.textbbox((0, 0), ticket.ticket_code, font=f_code)
+    # Ticket Code
+    tck_code = getattr(ticket, 'ticket_code', 'TCK-000000')
+    code_bbox = draw.textbbox((0, 0), tck_code, font=f_code)
     code_w = code_bbox[2] - code_bbox[0]
-    draw.text(
-        (qr_x + (qr_size // 2) - (code_w // 2), qr_y + qr_size + pad + 12 * _S),
-        ticket.ticket_code, font=f_code, fill=C_DIM
-    )
+    code_y = qr_top_y + qr_box_size + 16 * _S
+    draw.text((qr_cx - code_w // 2, code_y), tck_code, font=f_code, fill=C_DIM)
 
-    accent = _diagonal_gradient((W, 6 * _S), C_STAGE, C_VIOLET)
-    card.paste(accent, (0, 0))
+    # "Simpan" Link Action
+    simpan_y = code_y + 32 * _S
+    simpan_text = "Simpan"
+    s_bbox = draw.textbbox((0, 0), simpan_text, font=f_simpan)
+    s_w = s_bbox[2] - s_bbox[0]
+    total_simpan_w = s_w + 22 * _S
+    simpan_x = qr_cx - total_simpan_w // 2
 
-    mask = _rounded_mask((W, H), RADIUS)
-    base.paste(card, (0, 0), mask)
+    _draw_download_icon(draw, simpan_x, simpan_y + 2 * _S, 16 * _S, C_YELLOW)
+    draw.text((simpan_x + 22 * _S, simpan_y), simpan_text, font=f_simpan, fill=C_YELLOW)
 
-    if ticket.status != "unused":
-        gray_card = ImageOps.grayscale(base.convert("RGB")).convert("RGB")
-        base = Image.blend(gray_card, base.convert("RGB"), alpha=0.35).convert("RGBA")
+    # 11. Apply Card Notches & Rounded Corners
+    notch_r = 28 * _S
+    cy = H // 2
+    
+    # Transparency mask
+    mask = Image.new("L", (W, H), 255)
+    mdraw = ImageDraw.Draw(mask)
+    
+    # Outer Rounded Corners
+    mdraw.rounded_rectangle([0, 0, W, H], radius=RADIUS, fill=255)
+    
+    # Left & Right Edge Semi-circle Notches
+    mdraw.ellipse([-notch_r, cy - notch_r, notch_r, cy + notch_r], fill=0)
+    mdraw.ellipse([W - notch_r, cy - notch_r, W + notch_r, cy + notch_r], fill=0)
 
-    return base.convert("RGB").resize((W // _S, H // _S), Image.LANCZOS)
+    # Final Composite
+    canvas = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    canvas.paste(card.convert("RGBA"), (0, 0), mask)
+
+    # Supersampled Downscale for Super Sharp Anti-Aliasing
+    return canvas.resize((W_OUT, H_OUT), Image.LANCZOS)
 
 
-# --- EXPORTED FUNCTIONS (Dipanggil oleh email_service.py) ---
+# --- Functions used by email_service.py ---
 
 def render_tickets_pngs(tickets, event, category_map, order, poster_img=None):
     """Returns list of (filename, png_bytes) for each ticket."""
     results = []
     for t in tickets:
-        category = category_map.get(t.order_detail_id) if isinstance(category_map, dict) else category_map
-        img = render_ticket_png(t, event, category, order, poster_img=poster_img)
+        cat = category_map.get(t.order_detail_id) if isinstance(category_map, dict) else category_map
+        img = render_ticket_png(t, event, cat, order, poster_img=poster_img)
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         results.append((f"{t.ticket_code}.png", buf.getvalue()))
@@ -280,8 +333,8 @@ def render_tickets_pdf(tickets, event, category_map, order, poster_img=None):
     """Returns a single multi-page PDF (bytes) containing all tickets, one per page."""
     images = []
     for t in tickets:
-        category = category_map.get(t.order_detail_id) if isinstance(category_map, dict) else category_map
-        img = render_ticket_png(t, event, category, order, poster_img=poster_img).convert("RGB")
+        cat = category_map.get(t.order_detail_id) if isinstance(category_map, dict) else category_map
+        img = render_ticket_png(t, event, cat, order, poster_img=poster_img).convert("RGB")
         images.append(img)
 
     if not images:
