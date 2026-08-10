@@ -72,6 +72,8 @@ def send_push_to_user(user_id, title, body, url="/"):
                 data=payload,
                 vapid_private_key=VAPID_PRIVATE_KEY,
                 vapid_claims={"sub": VAPID_CLAIMS_SUB},
+                ttl=86400,  # antre sampai 24 jam kalau device belum kejangkau pas itu juga
+                headers={"Urgency": "high"},
             )
         except WebPushException as e:
             # Subscription kadaluarsa (browser/OS batalin sendiri) -> hapus dari DB
