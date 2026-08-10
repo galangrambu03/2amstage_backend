@@ -96,7 +96,6 @@ def _poster_panel(poster_img, event_label):
         top = (new_h - H) // 2
         panel = src.crop((left, top, left + POSTER_W, top + H))
 
-        # Gradient dark scrim di sisi kanan poster untuk seamless blending
         scrim = Image.new("L", (POSTER_W, H), 0)
         sd = ImageDraw.Draw(scrim)
         for xx in range(POSTER_W):
@@ -136,15 +135,12 @@ def render_ticket_png(ticket, event, category, order, poster_img=None):
     card = Image.new("RGB", (W, H), C_SURFACE)
     draw = ImageDraw.Draw(card)
 
-    # 1. Poster Frame
     panel = _poster_panel(poster_img, event.artis or event.nama)
     card.paste(panel, (0, 0))
 
-    # Perforated Divider (Antara Main & Stub)
     stub_x = W - STUB_W
     _perforation(draw, stub_x, -10 * _S, H + 10 * _S, C_VOID)
 
-    # Fonts
     f_cat = _font("bold", 14)
     f_title = _font("bold", 36)
     f_sub = _font("regular", 20)
@@ -154,21 +150,17 @@ def render_ticket_png(ticket, event, category, order, poster_img=None):
 
     x = POSTER_W + 40 * _S
 
-    # 2. Category Label (UPPERCASE Amber)
     cat_name = getattr(category, 'nama_kategori', str(category)) if category else "TIKET"
     draw.text((x, 32 * _S), cat_name.upper(), font=f_cat, fill=C_AMBER)
 
-    # 3. Artis / Title
     title_text = event.artis or event.nama or "Konser"
     draw.text((x, 56 * _S), title_text, font=f_title, fill=C_HI)
 
-    # 4. Subtitle (Event Name if Artis exists)
     curr_y = 112 * _S
     if event.artis and event.nama:
         draw.text((x, curr_y), event.nama, font=f_sub, fill=C_MID)
         curr_y += 32 * _S
 
-    # 5. Metadata Grid (Tanggal, Waktu, Lokasi)
     tanggal = _format_tanggal(event.tanggal) if hasattr(event, 'tanggal') else "-"
     waktu = (event.waktu.strftime("%H:%M") + " WIB") if getattr(event, 'waktu', None) else "-"
     lokasi = getattr(event, 'lokasi', "-")
@@ -178,7 +170,6 @@ def render_ticket_png(ticket, event, category, order, poster_img=None):
     draw.text((x, meta_y + 32 * _S), f"⏰  {waktu}", font=f_meta, fill=C_MID)
     draw.text((x, meta_y + 64 * _S), f"📍  {lokasi}", font=f_meta, fill=C_MID)
 
-    # 6. Check-in Timestamp (If Used)
     if ticket.status == "used" and getattr(ticket, 'used_at', None):
         draw.text(
             (x, meta_y + 104 * _S),
@@ -187,7 +178,6 @@ def render_ticket_png(ticket, event, category, order, poster_img=None):
             fill=C_DIM
         )
 
-    # 7. Status Badge (Dynamic STATUS_MAP like React)
     is_active = ticket.status == "unused"
     if is_active:
         status_label = "Aktif"
@@ -202,7 +192,6 @@ def render_ticket_png(ticket, event, category, order, poster_img=None):
         badge_fg = C_STAGE
         badge_bg = (60, 20, 30)
 
-    # Render Badge
     bbox = draw.textbbox((0, 0), status_label, font=f_badge)
     bw = bbox[2] - bbox[0] + 48 * _S
     bh = 32 * _S
@@ -217,7 +206,6 @@ def render_ticket_png(ticket, event, category, order, poster_img=None):
         width=1 * _S
     )
 
-    # Status Icon inside Badge
     ic_x, ic_y = badge_x + 16 * _S, badge_y + bh // 2
     r = 6 * _S
     draw.ellipse((ic_x - r, ic_y - r, ic_x + r, ic_y + r), outline=badge_fg, width=int(1.5 * _S))
@@ -229,12 +217,10 @@ def render_ticket_png(ticket, event, category, order, poster_img=None):
 
     draw.text((badge_x + 30 * _S, badge_y + 6 * _S), status_label, font=f_badge, fill=badge_fg)
 
-    # 8. Stub Right Side (QR Code & Ticket Code)
     qr_size = 180 * _S
     qr_x = stub_x + (STUB_W - qr_size) // 2
     qr_y = (H - qr_size) // 2 - 15 * _S
 
-    # Shadow for QR
     shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     sd = ImageDraw.Draw(shadow)
     pad = 12 * _S
@@ -246,7 +232,6 @@ def render_ticket_png(ticket, event, category, order, poster_img=None):
     card = Image.alpha_composite(card.convert("RGBA"), shadow).convert("RGB")
     draw = ImageDraw.Draw(card)
 
-    # QR Background Box
     draw.rounded_rectangle(
         (qr_x - pad, qr_y - pad, qr_x + qr_size + pad, qr_y + qr_size + pad),
         radius=16 * _S, fill=C_HI
@@ -257,7 +242,6 @@ def render_ticket_png(ticket, event, category, order, poster_img=None):
         qr_img = qr_img.resize((qr_size, qr_size), Image.LANCZOS)
         card.paste(qr_img, (qr_x, qr_y))
 
-    # Ticket Code under QR
     code_bbox = draw.textbbox((0, 0), ticket.ticket_code, font=f_code)
     code_w = code_bbox[2] - code_bbox[0]
     draw.text(
@@ -265,20 +249,43 @@ def render_ticket_png(ticket, event, category, order, poster_img=None):
         ticket.ticket_code, font=f_code, fill=C_DIM
     )
 
-    # Accent Top Line Gradient
     accent = _diagonal_gradient((W, 6 * _S), C_STAGE, C_VIOLET)
     card.paste(accent, (0, 0))
 
-    # Apply Card Mask
     mask = _rounded_mask((W, H), RADIUS)
     base.paste(card, (0, 0), mask)
 
-    # 9. If Status != unused (Used/Void), Apply Grayscale & Opacity Effect (Mirrors React `opacity-60 grayscale`)
     if ticket.status != "unused":
-        # Convert to Grayscale & back to RGB
         gray_card = ImageOps.grayscale(base.convert("RGB")).convert("RGB")
-        # Blend original color with grayscale (60% opacity look)
         base = Image.blend(gray_card, base.convert("RGB"), alpha=0.35).convert("RGBA")
 
-    # Downsample for Anti-Aliasing Crisp Output
     return base.convert("RGB").resize((W // _S, H // _S), Image.LANCZOS)
+
+
+# --- EXPORTED FUNCTIONS (Dipanggil oleh email_service.py) ---
+
+def render_tickets_pngs(tickets, event, category_map, order, poster_img=None):
+    """Returns list of (filename, png_bytes) for each ticket."""
+    results = []
+    for t in tickets:
+        category = category_map.get(t.order_detail_id) if isinstance(category_map, dict) else category_map
+        img = render_ticket_png(t, event, category, order, poster_img=poster_img)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        results.append((f"{t.ticket_code}.png", buf.getvalue()))
+    return results
+
+
+def render_tickets_pdf(tickets, event, category_map, order, poster_img=None):
+    """Returns a single multi-page PDF (bytes) containing all tickets, one per page."""
+    images = []
+    for t in tickets:
+        category = category_map.get(t.order_detail_id) if isinstance(category_map, dict) else category_map
+        img = render_ticket_png(t, event, category, order, poster_img=poster_img).convert("RGB")
+        images.append(img)
+
+    if not images:
+        return None
+    buf = io.BytesIO()
+    images[0].save(buf, format="PDF", save_all=True, append_images=images[1:])
+    return buf.getvalue()
