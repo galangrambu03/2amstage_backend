@@ -44,6 +44,7 @@ def create_app():
         from app.routes.follows import follows_bp
         from app.routes.chat import chat_bp
         from app.routes.badges import badges_bp
+        from app.routes.push import push_bp
         app.register_blueprint(auth_bp)
         app.register_blueprint(events_bp)
         app.register_blueprint(tc_bp)
@@ -54,5 +55,6 @@ def create_app():
         app.register_blueprint(follows_bp)
         app.register_blueprint(chat_bp)
         app.register_blueprint(badges_bp)
+        app.register_blueprint(push_bp)
 
     return app

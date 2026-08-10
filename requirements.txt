@@ -10,3 +10,4 @@ qrcode
 Pillow
 bcrypt
 requests
+pywebpush

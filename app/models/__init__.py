@@ -4,3 +4,4 @@ from app.models.ticket_category import TicketCategory
 from app.models.order import Order
 from app.models.order_detail import OrderDetail
 from app.models.ticket import Ticket
+from app.models.push_subscription import PushSubscription
