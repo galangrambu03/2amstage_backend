@@ -10,4 +10,3 @@ qrcode
 Pillow
 bcrypt
 pywebpush
-playwright>=1.40.0

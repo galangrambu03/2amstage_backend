@@ -4,9 +4,9 @@ import requests
 from flask import render_template, current_app
 from PIL import Image
 
-# Import generator PNG dari ticket_image dan generator PDF baru dari pdf_service
-from app.utils.ticket_image import render_tickets_pngs
-from app.utils.pdf_service import generate_tickets_pdf
+# Import generator PNG & PDF, dua-duanya dari ticket_image (Pillow) — nggak butuh
+# browser Chromium kayak Playwright, jadi lebih ringan & stabil buat di-deploy.
+from app.utils.ticket_image import render_tickets_pngs, render_tickets_pdf
 
 
 def _format_idr(amount):
@@ -103,14 +103,13 @@ def send_ticket_email(user, order, event, tickets, order_details, categories):
                 "content": base64.b64encode(png_bytes).decode('utf-8')
             })
 
-        # 3. Attach PDF Tiket (Menggunakan HTML Template ticket_pdf.html & Playwright)
-        pdf_bytes = generate_tickets_pdf(
-            tickets=tickets,
-            event=event,
-            category_by_detail=category_by_detail,
-            order=order,
-            tanggal_display=tanggal_display,
-            waktu_display=waktu_display
+        # 3. Attach PDF Tiket (desain sama kayak PNG di atas, dari ticket_image.py)
+        pdf_bytes = render_tickets_pdf(
+            tickets,
+            event,
+            category_by_detail,
+            order,
+            poster_img=poster_img,
         )
 
         if pdf_bytes:
