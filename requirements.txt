@@ -11,4 +11,3 @@ Pillow
 bcrypt
 requests
 pywebpush
-playwright>=1.40.0
