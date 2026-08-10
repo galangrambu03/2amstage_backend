@@ -177,7 +177,7 @@ def render_ticket_png(ticket, event, category, order, poster_img=None):
 
     # 3. Fonts Setup (Readable & Scaled)
     f_cat = _font("bold", 14)
-    f_title = _font("bold", 30)
+    f_title = _font("bold", 44)
     f_sub = _font("regular", 18)
     f_meta = _font("regular", 17)
     f_badge = _font("bold", 14)
@@ -195,7 +195,7 @@ def render_ticket_png(ticket, event, category, order, poster_img=None):
     # 5. Artist Title & Event Subtitle
     draw.text((x, 62 * _S), artis_name, font=f_title, fill=C_WHITE)
     
-    curr_y = 118 * _S
+    curr_y = 130 * _S
     event_nama = getattr(event, 'nama', None)
     if event_nama and event_nama != artis_name:
         draw.text((x, curr_y), event_nama, font=f_sub, fill=C_MUTED)
