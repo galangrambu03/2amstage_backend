@@ -9,7 +9,8 @@ C_CATEGORY = (255, 75, 85)     # Coral / Pinkish Red ("TIKET")
 C_WHITE = (255, 255, 255)      # Primary Title & Details
 C_MUTED = (156, 163, 175)      # Subtitle / Muted text
 C_DIM = (100, 110, 125)        # Code / Dim text
-C_YELLOW = (234, 200, 20)      # Bright Yellow for Icons & "Simpan"
+C_YELLOW = (234, 200, 20)      # Bright Yellow for "Simpan" action link
+C_ICON = (214, 217, 224)       # Soft neutral for calendar/clock/pin icons — blends with text, not loud
 
 # Status colors
 C_GREEN_TEXT = (34, 197, 94)   # Bright green text & outline
@@ -79,15 +80,14 @@ def _format_waktu(waktu):
 # --- Vector Icon Drawing Functions ---
 
 def _draw_calendar_icon(draw, x, y, size, color):
-    w = max(2, size // 10)
-    # Outer box
-    draw.rounded_rectangle([x, y + size * 0.2, x + size, y + size], radius=size * 0.15, outline=color, width=w)
-    # Header filled bar
-    draw.rectangle([x, y + size * 0.2, x + size, y + size * 0.45], fill=color)
-    # Ring pegs
-    r_w = max(2, size // 8)
-    draw.line([(x + size * 0.3, y), (x + size * 0.3, y + size * 0.25)], fill=color, width=r_w)
-    draw.line([(x + size * 0.7, y), (x + size * 0.7, y + size * 0.25)], fill=color, width=r_w)
+    w = max(2, size // 12)
+    top = y + size * 0.2
+    # Thin outline box only — no filled header bar, keeps it looking light
+    draw.rounded_rectangle([x, top, x + size, y + size], radius=size * 0.14, outline=color, width=w)
+    draw.line([(x + w, top + size * 0.24), (x + size - w, top + size * 0.24)], fill=color, width=w)
+    # Small ring pegs at top
+    draw.line([(x + size * 0.28, y), (x + size * 0.28, top + size * 0.12)], fill=color, width=w)
+    draw.line([(x + size * 0.72, y), (x + size * 0.72, top + size * 0.12)], fill=color, width=w)
 
 
 def _draw_clock_icon(draw, x, y, size, color):
@@ -208,7 +208,7 @@ def render_ticket_png(ticket, event, category, order, poster_img=None):
     wkt_text = _format_waktu(getattr(event, 'waktu', None))
 
     icon_s = 20 * _S
-    _draw_calendar_icon(draw, x, curr_y + 2 * _S, icon_s, C_YELLOW)
+    _draw_calendar_icon(draw, x, curr_y + 2 * _S, icon_s, C_WHITE)
     draw.text((x + 28 * _S, curr_y), tgl_text, font=f_meta, fill=C_WHITE)
 
     # Calculate offset for Clock Icon
@@ -221,7 +221,7 @@ def render_ticket_png(ticket, event, category, order, poster_img=None):
     # 7. Details Row 2: Lokasi
     curr_y += 42 * _S
     lokasi_text = getattr(event, 'lokasi', '-') or '-'
-    _draw_pin_icon(draw, x, curr_y + 2 * _S, icon_s, C_YELLOW)
+    _draw_pin_icon(draw, x, curr_y + 2 * _S, icon_s, C_WHITE)
     draw.text((x + 28 * _S, curr_y), lokasi_text, font=f_meta, fill=C_WHITE)
 
     # 8. Status Badge ("AKTIF") - Top Right
