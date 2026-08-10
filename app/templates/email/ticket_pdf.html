@@ -1,190 +1,225 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
-<meta charset="utf-8">
-<style>
-  @page {
-    size: 260mm 90mm;
-    margin: 0;
-  }
-  * {
-    box-sizing: border-box;
-    -webkit-print-color-adjust: exact;
-  }
-  body {
-    margin: 0;
-    padding: 0;
-    background-color: #0E0E12;
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    color: #FFFFFF;
-  }
-  .page {
-    width: 260mm;
-    height: 90mm;
-    page-break-after: always;
-    overflow: hidden;
-  }
-  .page:last-child {
-    page-break-after: avoid;
-  }
-  .card {
-    display: flex;
-    width: 100%;
-    height: 100%;
-    background-color: #16161A;
-    position: relative;
-    overflow: hidden;
-  }
-  .poster-container {
-    width: 65mm;
-    height: 100%;
-    flex-shrink: 0;
-    background-color: #1E1C28;
-  }
-  .poster-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  .details-container {
-    flex: 1;
-    padding: 18px 24px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-  }
-  .category-tag {
-    color: #FF4D5A;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-  }
-  .artist-name {
-    font-size: 24px;
-    font-weight: 800;
-    margin: 2px 0 0 0;
-    color: #FFFFFF;
-  }
-  .event-title {
-    font-size: 13px;
-    color: #9CA3AF;
-    margin: 2px 0 0 0;
-  }
-  .info-row {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    margin-top: 10px;
-    font-size: 13px;
-  }
-  .info-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: #FFFFFF;
-  }
-  .badge-status {
-    position: absolute;
-    top: 18px;
-    right: 75mm;
-    border: 1.5px solid #22C55E;
-    background-color: #062819;
-    color: #22C55E;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 10px;
-    font-weight: 800;
-  }
-  .divider {
-    width: 1px;
-    height: 80%;
-    margin: auto 0;
-    border-left: 2px dashed #323441;
-  }
-  .stub-container {
-    width: 65mm;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 12px;
-    background-color: #16161A;
-  }
-  .qr-box {
-    background: #FFFFFF;
-    padding: 8px;
-    border-radius: 12px;
-  }
-  .qr-img {
-    width: 100px;
-    height: 100px;
-    display: block;
-  }
-  .ticket-code {
-    font-family: monospace;
-    font-size: 10px;
-    color: #6B7280;
-    margin-top: 8px;
-  }
-  .notch-left, .notch-right {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background-color: #0E0E12;
-  }
-  .notch-left { left: -12px; }
-  .notch-right { right: -12px; }
-</style>
+    <meta charset="utf-8">
+    <style>
+        @page {
+            size: 260mm 90mm;
+            margin: 0;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0E0E12;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #FFFFFF;
+        }
+
+        .page {
+            width: 260mm;
+            height: 90mm;
+            page-break-after: always;
+            overflow: hidden;
+        }
+
+        .page:last-child {
+            page-break-after: avoid;
+        }
+
+        .card {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            background-color: #16161A;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .poster-container {
+            width: 65mm;
+            height: 100%;
+            flex-shrink: 0;
+            background-color: #1E1C28;
+        }
+
+        .poster-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .details-container {
+            flex: 1;
+            padding: 18px 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .category-tag {
+            color: #FF4D5A;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        .artist-name {
+            font-size: 24px;
+            font-weight: 800;
+            margin: 2px 0 0 0;
+            color: #FFFFFF;
+        }
+
+        .event-title {
+            font-size: 13px;
+            color: #9CA3AF;
+            margin: 2px 0 0 0;
+        }
+
+        .info-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #FFFFFF;
+        }
+
+        .badge-status {
+            position: absolute;
+            top: 18px;
+            right: 75mm;
+            border: 1.5px solid #22C55E;
+            background-color: #062819;
+            color: #22C55E;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+        .divider {
+            width: 1px;
+            height: 80%;
+            margin: auto 0;
+            border-left: 2px dashed #323441;
+        }
+
+        .stub-container {
+            width: 65mm;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            background-color: #16161A;
+        }
+
+        .qr-box {
+            background: #FFFFFF;
+            padding: 8px;
+            border-radius: 12px;
+        }
+
+        .qr-img {
+            width: 100px;
+            height: 100px;
+            display: block;
+        }
+
+        .ticket-code {
+            font-family: monospace;
+            font-size: 10px;
+            color: #6B7280;
+            margin-top: 8px;
+        }
+
+        .notch-left,
+        .notch-right {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: #0E0E12;
+        }
+
+        .notch-left {
+            left: -12px;
+        }
+
+        .notch-right {
+            right: -12px;
+        }
+    </style>
 </head>
+
 <body>
 
-{% for item in tickets_data %}
-<div class="page">
-  <div class="card">
-    <div class="notch-left"></div>
-    <div class="notch-right"></div>
+    {% for item in tickets_data %}
+    <div class="page">
+        <div class="card">
+            <div class="notch-left"></div>
+            <div class="notch-right"></div>
 
-    <div class="poster-container">
-      {% if event.poster_url %}
-        <img class="poster-img" src="{{ event.poster_url }}" alt="Poster">
-      {% endif %}
-    </div>
+            <!-- Bagian Poster -->
+            <div class="poster-container">
+                {% if poster_base64 %}
+                <img class="poster-img" src="{{ poster_base64 }}" alt="Poster">
+                {% else %}
+                <div style="padding: 20px; color: #6B7280; font-size: 12px; text-align: center; margin-top: 40%;">
+                    {{ event.nama }}
+                </div>
+                {% endif %}
+            </div>
 
-    <div class="details-container">
-      <div>
-        <div class="category-tag">{{ item.category.nama_kategori if item.category else 'TIKET' }}</div>
-        <h1 class="artist-name">{{ event.artis or event.nama }}</h1>
-        <p class="event-title">{{ event.nama }}</p>
-      </div>
+            <div class="details-container">
+                <div>
+                    <div class="category-tag">{{ item.category.nama_kategori if item.category else 'TIKET' }}</div>
+                    <h1 class="artist-name">{{ event.artis or event.nama }}</h1>
+                    <p class="event-title">{{ event.nama }}</p>
+                </div>
 
-      <div>
-        <div class="info-row">
-          <div class="info-item">📅 {{ tanggal_display }}</div>
-          <div class="info-item">⏰ {{ waktu_display }}</div>
+                <div>
+                    <div class="info-row">
+                        <div class="info-item">📅 {{ tanggal_display }}</div>
+                        <div class="info-item">⏰ {{ waktu_display }}</div>
+                    </div>
+                    <div class="info-row" style="margin-top: 6px;">
+                        <div class="info-item">📍 {{ event.lokasi }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="badge-status">✓ AKTIF</div>
+            <div class="divider"></div>
+
+            <div class="stub-container">
+                <div class="qr-box">
+                    <img class="qr-img" src="data:image/png;base64,{{ item.ticket.qr_code_base64 }}" alt="QR Code">
+                </div>
+                <div class="ticket-code">{{ item.ticket.ticket_code }}</div>
+            </div>
         </div>
-        <div class="info-row" style="margin-top: 6px;">
-          <div class="info-item">📍 {{ event.lokasi }}</div>
-        </div>
-      </div>
     </div>
-
-    <div class="badge-status">✓ AKTIF</div>
-    <div class="divider"></div>
-
-    <div class="stub-container">
-      <div class="qr-box">
-        <img class="qr-img" src="data:image/png;base64,{{ item.ticket.qr_code_base64 }}" alt="QR Code">
-      </div>
-      <div class="ticket-code">{{ item.ticket.ticket_code }}</div>
-    </div>
-  </div>
-</div>
-{% endfor %}
+    {% endfor %}
 
 </body>
+
 </html>
